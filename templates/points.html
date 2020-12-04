@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Google Maps Multiple Markers</title>
+    <script src="http://maps.google.com/maps/api/js?key=AIzaSyDuEJOscSFwcZubl9BS86dxCJJVUE39uwE"
+            type="text/javascript"></script>
+</head>
+<body style="margin: 0;">
+<div id="map" style="width: 100vw; height: 100vh;"></div>
+
+<script type="text/javascript">
+    var locations = [
+        {% for  point in coordinates %}
+            [{{ point.0 }}, {{ point.1 }}],
+        {% endfor %}
+    ];
+    var map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 16,
+        center: new google.maps.LatLng(48.359814, 134.98775),
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+
+    var infowindow = new google.maps.InfoWindow();
+    var marker, i;
+
+    for (i = 0; i < locations.length; i++) {
+        marker = new google.maps.Marker({
+            position: new google.maps.LatLng(locations[i][0], locations[i][1]),
+            map: map
+        });
+
+        // google.maps.event.addListener(marker, 'click', (function(marker, i) {
+        //   return function() {
+        //     infowindow.setContent(locations[i][0]);
+        //     infowindow.open(map, marker);
+        //   }
+        // })(marker, i));
+    }
+
+
+    var imageBounds = {
+        north: 48.361830,
+        south: 48.354341,
+        east: 134.990645,
+        west: 134.970572
+    };
+
+    historicalOverlay = new google.maps.GroundOverlay(
+        './track_points.jpg',
+        imageBounds);
+    historicalOverlay.setMap(map);
+
+
+</script>
+</body>
+</html>
