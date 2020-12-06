@@ -1,6 +1,8 @@
 use std::fmt;
 use crate::geo_coder::GeoCoords;
 use telegram_bot::*;
+use crate::command_handler::Cmdr;
+use std::collections::HashMap;
 // use telegram_bot::{Api, Message, MessageKind};
 
 
@@ -19,8 +21,15 @@ impl<'a> Context<'a> {
         };
     }
 }
+//
+fn command_add_map(message: Message, context: &mut Context) {
+    context.top_left = Some(GeoCoords(10., 10.))
+}
+// &Context
+type Comands = HashMap<String, Box<dyn  FnMut(Message, &mut Context)>>;
 
 pub struct Bot<'a> {
+    commands: Comands,
     token: String,
     context: Context<'a>,
     api: &'a Api,
@@ -29,16 +38,26 @@ pub struct Bot<'a> {
 
 impl<'a> Bot<'a> {
     pub fn new(api: &'a Api, token: String) -> Self {
+        let mut commands: Comands = HashMap::new();
+        commands.insert(String::from("+++"), Box::new(command_add_map));
+        // let mut commands = Cmdr::new();
+        // commands.add("new_map", command_add_map);
         Self {
+            commands: commands,
             token,
             api,
             context: Context::new(),
         }
     }
 
-    pub async fn handle_message(&self, message: Message) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn handle_message(&mut self, message: Message) -> Result<(), Box<dyn std::error::Error>> {
         if let MessageKind::Text { ref data, .. } = message.kind {
             if data.starts_with("/") {
+                match self.commands.get_mut("+++") {
+                    // &self.context
+                    Some(fff) => fff(message, &mut self.context),
+                    _ => println!("dnf")
+                };
                 println!("Got command");
                 // handle_command(data);
                 return Ok(());
@@ -132,6 +151,20 @@ mod tests {
         // assert_eq!(2, 3);
         let bt = Bot::new(&api, token.clone());
     }
+
+    #[test]
+    fn vvvv() {
+        fn xxx(aaa: String) -> String {
+            aaa
+        }
+
+        let mut ppp: String = String::from("++++");
+        ppp = xxx(ppp);
+
+        println!("{}", ppp)
+
+    }
+
 }
 
 

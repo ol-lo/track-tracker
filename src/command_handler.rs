@@ -31,7 +31,7 @@ impl<T, E> Cmdr<T, E> {
 
     pub fn add<F>(&mut self, name: &str, cmd: F)
         where
-            F: FnMut() -> Result<T, E> + 'static,
+            F:  FnMut() -> Result<T, E> + 'static,
     {
         self.cmds.push(Cmd::new(name, cmd));
     }
@@ -69,9 +69,14 @@ mod tests {
     //     context.top_left = Some(GeoCoords(10.0, 10.0));
     //     context.image = Some("aaa".as_bytes())
     // }
-
     #[test]
     fn cmdr() {
+        let mut ddd: Vec<String> = Vec::new();
+        ddd.push(String::from("+++"));
+    }
+
+    #[test]
+    fn ppp() {
         let mut cmdr = Cmdr::new();
         cmdr.add("test1", || Ok("test1 executed."));
         cmdr.add("test2", || Err(42));

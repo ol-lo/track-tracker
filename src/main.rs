@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Api::new(&token);
     // let fsm = FSM::new();
     // fsm.xx();
-    let bot = Bot::new(&api, token);
+    let mut bot = Bot::new(&api, token);
     // Message::try_from()
     // Fetch new updates via long poll method
     let mut stream = api.stream();
