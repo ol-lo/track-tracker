@@ -2,13 +2,9 @@ extern crate image;
 
 use image::io::Reader as ImageReader;
 use image::{GenericImageView, GenericImage, DynamicImage};
-//use lab::Lab;
 use delta_e::DE2000;
 use tera::{Tera, Context};
 
-//use ndarray::Array2;
-
-//use serde::{Serialize};
 use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::Write;
@@ -22,10 +18,6 @@ fn are_points_too_close(first: &Point, second: &Point) -> bool {
 }
 
 fn is_in_radius(vec: &Vec<Point>, point: Point) -> bool {
-//    let rng = 0..30;
-//    let v: Vec<Point> = Vec::new();
-//    let point = Point(1, 1);
-
     vec.iter().any(
         |point_on_map| are_points_too_close(&point_on_map, &point)
     )
