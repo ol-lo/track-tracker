@@ -3,6 +3,9 @@ use crate::geo_coder::GeoCoords;
 use telegram_bot::*;
 use crate::command_handler::Cmdr;
 use std::collections::HashMap;
+use futures::TryFutureExt;
+use crate::tracker::publish_map;
+
 // use crate::bot::CommandKind::AddMap;
 // use crate::bot::AddCommandStep::TopLeft;
 // use telegram_bot::{Api, Message, MessageKind};
@@ -63,6 +66,7 @@ impl AddMapCommand {
                             ).await?;
                         }
                         Ok(coords) => {
+                            self.top_left = Some(coords);
                             self.step = AddCommandStep::BottomRight;
                             self.api.send(message.chat.text("#2. Введите координаты `нижнего правого угла` картинки  `12.3456, 12.3456`").parse_mode(ParseMode::Markdown)).await?;
                         }
@@ -85,6 +89,7 @@ impl AddMapCommand {
                             ).await?;
                         }
                         Ok(coords) => {
+                            self.bottom_right = Some(coords);
                             self.step = AddCommandStep::Image;
                             self.api.send(message.chat.text("#3. Прикрепите изображение карты").parse_mode(ParseMode::Markdown)).await?;
                         }
@@ -92,20 +97,17 @@ impl AddMapCommand {
                 }
             }
             AddCommandStep::Image => {
-                if let MessageKind::Photo {ref data, .. } = message.kind {
-                    let file_url =data[0].get_file();
+                if let MessageKind::Photo { ref data, .. } = message.kind {
+                    let file_url = data[0].get_file();
+
                     let resp = self.api.send(file_url).await?;
                     let full_url = resp.get_url(self.token.as_str()).unwrap();
                     if let Some(file_url) = resp.file_path {
-                        println!("Got right file {}", full_url);
+                        let resp = reqwest::get(&full_url).await?;
+                        let bytes = resp.bytes().await?;
+                        publish_map(&self.top_left.as_ref().unwrap(), &self.bottom_right.as_ref().unwrap(), &bytes.to_vec());
                     }
-                    // file_url.url
-                    // let file = reqwest.get()reqwest.data[0].get_file(;
-
-                    // self.api.send(message.chat.text(format!("{}", )).parse_mode(ParseMode::Markdown))
-
                 }
-
             }
 
             // _ => {}
@@ -235,6 +237,7 @@ impl<'a> Bot<'a> {
                         let mut add_map_command = AddMapCommand::new(&self.api, &self.token);
                         add_map_command.handle_command(&message).await?;
                         self.current_command = Some(CommandKind::AddMap(add_map_command));
+
                         // self.current_command
                         // let mut ddd = CommandKind::AddMap(AddMapCommand::default());
                         // match ddd {

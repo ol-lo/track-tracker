@@ -8,7 +8,7 @@ use std::convert::TryInto;
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Point(pub i32, pub i32);
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub struct GeoCoords(pub f32, pub f32);
 
 #[derive(Debug, PartialEq)]
@@ -147,7 +147,6 @@ pub fn trace(top_left: GeoCoords, bottom_right: GeoCoords, image: &[u8], path_co
 }
 
 
-
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
@@ -155,9 +154,7 @@ mod tests {
 
     #[test]
     fn test_wrong_format() {
-        // let errr = GeoCoordsError{};
         assert_eq!(GeoCoords::from_str("++++"), Err(GeoCoordsError))
-        // assert_eq!(4, 3);
     }
 
     #[test]

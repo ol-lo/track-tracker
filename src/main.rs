@@ -2,6 +2,7 @@ mod page_builder;
 mod geo_coder;
 mod bot;
 mod command_handler;
+mod tracker;
 
 use std::env;
 
