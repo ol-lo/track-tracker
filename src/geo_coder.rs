@@ -2,13 +2,37 @@ use serde::{Serialize, Deserialize};
 use delta_e::DE2000;
 use image::{DynamicImage, GenericImage, GenericImageView};
 use lab::Lab;
+use std::num::ParseIntError;
+use std::convert::TryInto;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Point(pub i32, pub i32);
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct GeoCoords(pub f32, pub f32);
 
+#[derive(Debug, PartialEq)]
+pub struct GeoCoordsError;
+
+impl GeoCoords {
+    pub fn from_str(s: &str) -> Result<Self, GeoCoordsError> {
+        let cleaned = s.replace(" ", "");
+        let coords:Vec<&str> = cleaned.split(",").collect();
+        if coords.len() != 2 {
+            return Err(GeoCoordsError);
+        }
+
+        let res:Result<Vec<_>, _> = coords.iter().map(|&c| {
+            c.parse::<f32>()
+        } ).collect();
+
+        if let Ok(cord_nums) = res {
+            Ok(Self (cord_nums[0], cord_nums[1]))
+        } else {
+            return Err(GeoCoordsError);
+        }
+    }
+}
 
 impl std::fmt::Display for GeoCoords {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -123,3 +147,21 @@ pub fn trace(top_left: GeoCoords, bottom_right: GeoCoords, image: &[u8], path_co
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_wrong_format() {
+        // let errr = GeoCoordsError{};
+        assert_eq!(GeoCoords::from_str("++++"), Err(GeoCoordsError))
+        // assert_eq!(4, 3);
+    }
+
+    #[test]
+    fn ok_coords() {
+        assert_eq!(GeoCoords::from_str("12.3456, 12.3457").unwrap(), GeoCoords(12.3456, 12.3457))
+    }
+}
