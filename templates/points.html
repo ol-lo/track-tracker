@@ -17,31 +17,35 @@
     ];
     var map = new google.maps.Map(document.getElementById('map'), {
         zoom: 16,
-        center: new google.maps.LatLng({{ center.0 }}, {{ center.1 }}),
+        center: new google.maps.LatLng(48.57591247558594, 135.02122497558594),
         mapTypeId: google.maps.MapTypeId.ROADMAP
     });
 
     var infowindow = new google.maps.InfoWindow();
-    var marker, i;
 
+    // var marker, i;
+    var mapMarkers = [];
     for (i = 0; i < locations.length; i++) {
-        marker = new google.maps.Marker({
-            position: new google.maps.LatLng(locations[i][0], locations[i][1]),
-            map: map
+        mapMarkers.push(
+            new google.maps.Marker({
+                icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                position: new google.maps.LatLng(locations[i][0], locations[i][1]),
+                map: map,
+                // label: locations[i][0] + ", " + locations[i][1]
+            })
+        );
+        mapMarkers[i].posTitle = locations[i][0] + ", " + locations[i][1];
+        mapMarkers[i].addListener('click', function() {
+            infowindow.setContent(this.posTitle);
+            infowindow.open(map, this);
         });
-
-        // google.maps.event.addListener(marker, 'click', (function(marker, i) {
-        //   return function() {
-        //     infowindow.setContent(locations[i][0]);
-        //     infowindow.open(map, marker);
-        //   }
-        // })(marker, i));
     }
 
 
     var devicePositionMarker = null;
 
     function updateMarkerLocation(position) {
+        console.log('updaiting marker');
         var deviceCoords = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
@@ -49,18 +53,22 @@
         var latLng = new google.maps.LatLng(deviceCoords.lat, deviceCoords.lng);
         if (!devicePositionMarker) {
             devicePositionMarker = new google.maps.Marker({
-                icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
                 position: latLng,
                 map: map
-            })
+            });
+
+
+            devicePositionMarker.addListener('click', function() {
+                infowindow.setContent(deviceCoords.lat + ", " + deviceCoords.lng);
+                infowindow.open(map, this);
+            });
 
         } else {
-            marker.setPosition(latLng);
+            devicePositionMarker.setPosition( latLng );
         }
-        map.panTo(latLng);
 
-
-        map.setCenter(latLng);
+        // map.panTo(latLng);
     }
 
     navigator.geolocation.getCurrentPosition(updateMarkerLocation, function () {
@@ -77,9 +85,11 @@
         west: {{ top_left.1 }}
     };
 
+
     historicalOverlay = new google.maps.GroundOverlay(
         './{{ overlay_file }}',
         imageBounds);
+    historicalOverlay.setOpacity(.2);
     historicalOverlay.setMap(map);
 
 
