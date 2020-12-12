@@ -1,11 +1,14 @@
 use std::fmt;
+use std::fs;
+use url::{Url as UrlLib, ParseError};
+
 use crate::geo_coder::GeoCoords;
 use telegram_bot::*;
-use crate::command_handler::Cmdr;
 use std::collections::HashMap;
 use futures::TryFutureExt;
 use crate::tracker::publish_map;
 use config::Config;
+use std::path::Path;
 
 enum AddCommandStep {
     Initial,
@@ -100,7 +103,7 @@ impl AddMapCommand {
                             &self.top_left.as_ref().unwrap(),
                             &self.bottom_right.as_ref().unwrap(),
                             &bytes.to_vec(),
-                            file_url
+                            file_url,
                         );
 
                         let message_text = format!("[{}]({})", dest_url.as_str(), dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
@@ -113,8 +116,61 @@ impl AddMapCommand {
     }
 }
 
+
+struct ListCommand {
+    settings: Config,
+    api: Api,
+}
+
+
+fn list_html_files(storage_path: &str, server_url: &str) -> String {
+    let dir_path = storage_path;
+    let paths = fs::read_dir(dir_path).unwrap();
+    let dest_url = UrlLib::parse(server_url).unwrap();
+
+    let urls = paths.
+        filter(|f| {
+            let dir_entry = f.as_ref().unwrap();
+            let path = dir_entry.path();
+            let metadata = fs::metadata(&path).unwrap();
+            metadata.is_file() && path.extension().unwrap() == "html"
+        }).flatten().
+        map(|f| {
+            let url = dest_url.join(f.file_name().to_str().unwrap()).unwrap().to_string();
+            format!("[{}]({})", url.as_str(), url.as_str()).replace("`", r"\`").replace(")", r"\)")
+        }).collect::<Vec<_>>();
+
+    urls.join("\n")
+}
+
+impl ListCommand {
+    pub fn new(api: &Api, settings: Config) -> Self {
+        return Self {
+            settings,
+            api: api.clone(),
+        };
+    }
+    pub async fn handle_command(&mut self, message: &Message) -> Result<(), Box<dyn std::error::Error>> {
+        let files_as_text = list_html_files(
+            &self.settings.get_str("map_storage_path").unwrap(),
+            &self.settings.get_str("server_url").unwrap()
+        );
+        let mut message_text: String = String::from("");
+        if files_as_text.is_empty() {
+            message_text = String::from("Нет карт");
+        }  else {
+            message_text = files_as_text;
+        }
+
+        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Markdown)).await?;
+
+        Ok(())
+    }
+}
+
 enum CommandKind {
     AddMap(AddMapCommand),
+    List(ListCommand),
 }
 
 
@@ -142,6 +198,11 @@ impl<'a> Bot<'a> {
                         let mut add_map_command = AddMapCommand::new(&self.api, self.settings.get_str("bot_token").unwrap());
                         add_map_command.handle_command(&message).await?;
                         self.current_command = Some(CommandKind::AddMap(add_map_command));
+                    }
+                    "/list" => {
+                        let mut list_command = ListCommand::new(&self.api, self.settings.clone());
+                        list_command.handle_command(&message).await?;
+                        self.current_command = Some(CommandKind::List(list_command));
                     }
                     _ => {}
                 }
@@ -179,13 +240,7 @@ mod tests {
 
     #[test]
     fn vvvv() {
-        fn xxx(aaa: String) -> String {
-            aaa
-        }
-
-        let mut ppp: String = String::from("++++");
-        ppp = xxx(ppp);
-
-        println!("{}", ppp)
+        // print!("++++");
+        assert_eq!(list_html_files("/tmp/track_mapper", "http://localhost:8000"), "+++");
     }
 }

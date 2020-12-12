@@ -1,6 +1,5 @@
 mod geo_coder;
 mod bot;
-mod command_handler;
 mod tracker;
 
 use std::env;
@@ -20,6 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Api::new(&token);
     let mut bot = Bot::new(&api, settings.clone());
     let mut stream = api.stream();
+
 
     while let Some(update) = stream.next().await {
         let update = update?;
