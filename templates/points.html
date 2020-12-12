@@ -39,6 +39,37 @@
     }
 
 
+    var devicePositionMarker = null;
+
+    function updateMarkerLocation(position) {
+        var deviceCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        };
+        var latLng = new google.maps.LatLng(deviceCoords.lat, deviceCoords.lng);
+        if (!devicePositionMarker) {
+            devicePositionMarker = new google.maps.Marker({
+                icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                position: latLng,
+                map: map
+            })
+
+        } else {
+            marker.setPosition(latLng);
+        }
+        map.panTo(latLng);
+
+
+        map.setCenter(latLng);
+    }
+
+    navigator.geolocation.getCurrentPosition(updateMarkerLocation, function () {
+    });
+
+    navigator.geolocation.watchPosition(updateMarkerLocation, function () {
+    });
+
+
     var imageBounds = {
         north: {{ top_left.0 }},
         south: {{ bottom_right.0 }},
