@@ -106,7 +106,7 @@ impl AddMapCommand {
                             file_url,
                         );
 
-                        let message_text = format!("[{}]({})", dest_url.as_str(), dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
+                        let message_text = format!("{}", dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
                         self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Markdown)).await?;
                     }
                 }
@@ -137,7 +137,7 @@ fn list_html_files(storage_path: &str, server_url: &str) -> String {
         }).flatten().
         map(|f| {
             let url = dest_url.join(f.file_name().to_str().unwrap()).unwrap().to_string();
-            format!("[{}]({})", url.as_str(), url.as_str()).replace("`", r"\`").replace(")", r"\)")
+            format!("{}", url.as_str()).replace("`", r"\`").replace(")", r"\)")
         }).collect::<Vec<_>>();
 
     urls.join("\n")
