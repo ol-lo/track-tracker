@@ -17,7 +17,7 @@
     ];
     var map = new google.maps.Map(document.getElementById('map'), {
         zoom: 16,
-        center: new google.maps.LatLng(48.359814, 134.98775),
+        center: new google.maps.LatLng({{ center.0 }}, {{ center.1 }}),
         mapTypeId: google.maps.MapTypeId.ROADMAP
     });
 
@@ -40,14 +40,14 @@
 
 
     var imageBounds = {
-        north: 48.361830,
-        south: 48.354341,
-        east: 134.990645,
-        west: 134.970572
+        north: {{ top_left.0 }},
+        south: {{ bottom_right.0 }},
+        east: {{ bottom_right.1 }},
+        west: {{ top_left.1 }}
     };
 
     historicalOverlay = new google.maps.GroundOverlay(
-        './track_points.jpg',
+        './{{ overlay_file }}',
         imageBounds);
     historicalOverlay.setMap(map);
 

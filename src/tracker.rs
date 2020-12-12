@@ -1,34 +1,22 @@
 extern crate image;
 
 use image::{GenericImageView, GenericImage, DynamicImage};
-//use lab::Lab;
 use delta_e::DE2000;
 use tera::{Tera, Context};
-
-//use ndarray::Array2;
-
-//use serde::{Serialize};
 use serde::{Serialize, Deserialize};
+
+use std::path::{Path};
+use url::{Url as UrlLib, ParseError};
+
+
 use std::fs::File;
+use std::fs;
 use std::io::Write;
 use std::ops::Deref;
 use std::collections::HashMap;
 use crate::geo_coder::{GeoCoords, Point};
+use telegram_bot::MessageEntityKind::Url;
 
-
-// #[derive(Copy, Clone, PartialEq, Debug)]
-// struct Point(i32, i32);
-
-// #[derive(Serialize, Debug)]
-// struct GeoCoords(f32, f32);
-//
-//
-// impl std::fmt::Display for GeoCoords {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "[{}, {}]", self.0, self.1)
-//     }
-// }
-//
 
 struct GeoCoder {
     top_left: GeoCoords,
@@ -51,7 +39,6 @@ impl GeoCoder {
         GeoCoords(
             self.top_left.0 + ((self.bottom_right.0 - self.top_left.0) / self.height as f32) * point.1 as f32,
             self.top_left.1 + ((self.bottom_right.1 - self.top_left.1) / self.width as f32) * point.0 as f32,
-//            self.width as f32 / (self.bottom_right.1 - self.top_left.1) * point.0 as f32,
         )
     }
 }
@@ -62,16 +49,12 @@ fn are_points_too_close(first: &Point, second: &Point) -> bool {
 }
 
 fn is_in_radius(vec: &Vec<Point>, point: Point) -> bool {
-//    let rng = 0..30;
-//    let v: Vec<Point> = Vec::new();
-//    let point = Point(1, 1);
-
     vec.iter().any(
         |point_on_map| are_points_too_close(&point_on_map, &point)
     )
 }
 
-fn build_html_page(geo_coords: &Vec<GeoCoords>) -> String {
+fn build_html_page(geo_coords: &Vec<GeoCoords>, top_left: &GeoCoords, bottom_right: &GeoCoords, center: &GeoCoords, overlay_file: &str) -> String {
     let tera = match Tera::new("templates/*.html") {
         Ok(t) => t,
         Err(e) => {
@@ -83,11 +66,15 @@ fn build_html_page(geo_coords: &Vec<GeoCoords>) -> String {
 
     let mut context = Context::new();
     context.insert("coordinates", geo_coords);
+    context.insert("top_left", top_left);
+    context.insert("bottom_right", bottom_right);
+    context.insert("center", center);
+    context.insert("overlay_file", overlay_file);
 
     return tera.render("points.html", &context).unwrap();
 }
 
-const MIN_MARK_DISTANCE: i32 = 30;
+const MIN_MARK_DISTANCE: i32 = 1;
 const PATH_COLOR_REFERENCE: [u8; 3] = [241, 125, 12];
 
 fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: &mut Vec<u8>) -> Vec<Point> {
@@ -140,7 +127,6 @@ fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: 
         }
 
         distance += 1;
-
         if distance >= MIN_MARK_DISTANCE {
             let (first_point, last_point) = (next_points_to_visit.first().unwrap().clone(), next_points_to_visit.last().unwrap().clone());
             marker_points.push(first_point);
@@ -154,7 +140,7 @@ fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: 
     return marker_points;
 }
 
-pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8]) {
+pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8], file_name: &str) -> String {
     let img = image::load_from_memory(image).unwrap();
     let mut img_dest: DynamicImage = img.clone();
 
@@ -186,11 +172,36 @@ pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8])
         }
     }
 
-    let map = build_html_page(&geo_coords);
+    let center = GeoCoords(
+        (top_left.0 + bottom_right.0) / 2.,
+        (top_left.1 + bottom_right.1) / 2.
+    );
 
-    let mut generated_map_file = File::create("generated_map_.html").expect("unable to create file");
-    img_dest.save("/tmp/track_points_.jpg").unwrap();
+    let mut settings = config::Config::default();
+    settings.merge(config::File::with_name("config")).unwrap();
+
+
+    let storage_path_raw = settings.get_str("map_storage_path").unwrap();
+    let storage_path = Path::new(storage_path_raw.as_str());
+
+    let file_name_wo_ext = Path::new(file_name).file_stem().unwrap().to_str().unwrap();
+    let file_ext = Path::new(file_name).extension().unwrap().to_str().unwrap();
+
+    let page_name = format!("{}.html", file_name_wo_ext);
+    let overlay_name = format!("{}.{}", file_name_wo_ext, file_ext);
+    let overlay_path = storage_path.join(&overlay_name);
+
+
+    let map = build_html_page(&geo_coords, top_left, bottom_right, &center, overlay_name.as_str());
+
+    fs::create_dir_all(&storage_path_raw);
+
+    let mut generated_map_file = File::create(storage_path.join(&page_name)).expect("unable to create file");
+    img_dest.save(overlay_path).unwrap();
     generated_map_file.write_all(map.as_bytes()).expect("unable to write");
+
+    let dest_url = settings.get_str("server_url").unwrap();
+    UrlLib::parse(dest_url.as_str()).unwrap().join(&page_name.as_str()).unwrap().into_string()
 }
 
 fn run() {
