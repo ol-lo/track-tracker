@@ -107,7 +107,7 @@ impl AddMapCommand {
                         );
 
                         let message_text = format!("{}", dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
-                        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Markdown)).await?;
+                        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Html)).await?;
                     }
                 }
             }
@@ -161,7 +161,7 @@ impl ListCommand {
             message_text = files_as_text;
         }
 
-        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Markdown)).await?;
+        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Html)).await?;
 
         Ok(())
     }
