@@ -5,25 +5,140 @@
     <title>Google Maps Multiple Markers</title>
     <script src="https://maps.google.com/maps/api/js?key=AIzaSyDuEJOscSFwcZubl9BS86dxCJJVUE39uwE"
             type="text/javascript"></script>
+
+    <style>
+        .hidden {
+            display: none;
+        }
+        .marker {
+            margin-left: 40px;
+            -webkit-text-stroke-width: 1px;
+            -webkit-text-stroke-color: black;
+        }
+    </style>
+
 </head>
 <body style="margin: 0;">
+{{ svg_route|safe }}
+
 <div id="map" style="width: 100vw; height: 100vh;"></div>
 
 <script type="text/javascript">
-    var locations = [
-        {% for  point in coordinates %}
-            [{{ point.0 }}, {{ point.1 }}],
-        {% endfor %}
-    ];
-    var map = new google.maps.Map(document.getElementById('map'), {
+    document.querySelector("svg").classList.add('hidden');
+    let locations = [];
+    let map = new google.maps.Map(document.getElementById('map'), {
         zoom: 16,
         center: new google.maps.LatLng({{ center.0 }}, {{ center.1 }}),
         mapTypeId: google.maps.MapTypeId.ROADMAP
     });
 
-    var infowindow = new google.maps.InfoWindow();
+    let infowindow = new google.maps.InfoWindow();
 
-    // var marker, i;
+    const imageBounds = {
+        north: {{ top_left.0 }},
+        south: {{ bottom_right.0 }},
+        east: {{ bottom_right.1 }},
+        west: {{ top_left.1 }}
+    };
+
+
+    let coords = []
+    let overlayWidth = parseFloat(document.querySelector("svg").getAttribute('width'));
+    let overlayHeight = parseFloat(document.querySelector("svg").getAttribute('height'));
+
+    const svgPaths = [...document.querySelectorAll("path").values()];
+    let segmentEdgePoints = svgPaths.map((path, idx) => {
+        return [
+            {point: path.getPointAtLength(0), idx: idx, direction: 'start'},
+            {point: path.getPointAtLength(path.getTotalLength()), idx: idx, direction: 'end'},
+        ]
+    }).flat()
+    let cordsCopy = [...segmentEdgePoints];
+    let pairs = [];
+
+    function distance(firstPoint, secondPoint) {
+        return Math.sqrt(
+            Math.pow(firstPoint.point.x - secondPoint.point.x, 2.), Math.pow(firstPoint.point.y - secondPoint.point.y, 2.)
+        );
+    }
+
+    function findClosestPoint(point) {
+        return cordsCopy.reduce((prevDist, candidatePoint, idx) => {
+                if (candidatePoint.idx === point.idx) {
+                    return prevDist;
+                }
+                let pointDist = distance(point, candidatePoint);
+
+                if (pointDist < prevDist.distance) {
+                    return {distance: pointDist, idx: idx}
+                } else {
+                    return prevDist;
+                }
+            },
+            {distance: Infinity, idx: -1}
+        );
+    }
+
+    let closestPoints = segmentEdgePoints.map((point) => {
+        let closestPoint = findClosestPoint(point);
+        return {from: point, to: segmentEdgePoints[closestPoint.idx], distance: closestPoint.distance}
+    })
+
+    let farestPointPair = closestPoints.reduce((prevPair, currentPair) => {
+        return currentPair.distance> prevPair.distance ? currentPair : prevPair;
+    }, {from: undefined, to: undefined, distance: -Infinity})
+
+    function extendLocations(path, direction) {
+        let pathLengths = [];
+        if (direction === 'start') {
+            for (let i = 0.; i <= path.getTotalLength(); i += 10.) {
+                pathLengths.push(i)
+            }
+        } else if (direction === 'end') {
+            for (let i = path.getTotalLength(); i >= 0; i -= 10.) {
+                pathLengths.push(i)
+            }
+        } else {
+            console.error('can not find direction')
+        }
+        pathLengths.forEach((pathLength) => {
+            let point = path.getPointAtLength(pathLength);
+            locations.push([
+                imageBounds.north + ((imageBounds.south - imageBounds.north) / overlayHeight) * point.y,
+                imageBounds.west + ((imageBounds.east - imageBounds.west) / overlayWidth) * point.x,
+            ])
+
+        })
+    }
+    let traversedPaths = [];
+    extendLocations(svgPaths[farestPointPair.from.idx], farestPointPair.from.direction)
+    traversedPaths.push(farestPointPair.from.idx);
+
+
+    function findClosestPath(pathIndex, direction) {
+        // debugger;
+        const nextPoint =  closestPoints.find((pointCandidate) => {
+            return pointCandidate.from.direction === direction && pathIndex === pointCandidate.from.idx;
+        }).to
+
+        if (traversedPaths.includes(nextPoint.idx)) {
+            return undefined
+        } else {
+            return nextPoint
+        }
+    }
+
+    let prevPoint = farestPointPair.from;
+    while (traversedPaths.length < svgPaths.length) {
+        let nextPoint = findClosestPath(prevPoint.idx, prevPoint.direction === 'start'? 'end': 'start')
+        if (!nextPoint) {
+            break
+        }
+        extendLocations(svgPaths[nextPoint.idx], nextPoint.direction)
+        traversedPaths.push(nextPoint.idx)
+        prevPoint = nextPoint;
+
+    }
     var mapMarkers = [];
     for (i = 0; i < locations.length; i++) {
         mapMarkers.push(
@@ -31,21 +146,25 @@
                 icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
                 position: new google.maps.LatLng(locations[i][0], locations[i][1]),
                 map: map,
-                // label: locations[i][0] + ", " + locations[i][1]
+                label: {
+                    text: i.toString(),
+                    className: 'marker',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '18px'
+                }
             })
         );
         mapMarkers[i].posTitle = locations[i][0] + ", " + locations[i][1];
-        mapMarkers[i].addListener('click', function() {
+        mapMarkers[i].addListener('click', function () {
             infowindow.setContent(this.posTitle);
             infowindow.open(map, this);
         });
     }
 
-
     var devicePositionMarker = null;
 
     function updateMarkerLocation(position) {
-        console.log('updaiting marker');
         var deviceCoords = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
@@ -59,13 +178,13 @@
             });
 
 
-            devicePositionMarker.addListener('click', function() {
+            devicePositionMarker.addListener('click', function () {
                 infowindow.setContent(deviceCoords.lat + ", " + deviceCoords.lng);
                 infowindow.open(map, this);
             });
 
         } else {
-            devicePositionMarker.setPosition( latLng );
+            devicePositionMarker.setPosition(latLng);
         }
 
         // map.panTo(latLng);
@@ -78,18 +197,12 @@
     });
 
 
-    var imageBounds = {
-        north: {{ top_left.0 }},
-        south: {{ bottom_right.0 }},
-        east: {{ bottom_right.1 }},
-        west: {{ top_left.1 }}
-    };
 
 
     historicalOverlay = new google.maps.GroundOverlay(
         './{{ overlay_file }}',
         imageBounds);
-    historicalOverlay.setOpacity(.2);
+    historicalOverlay.setOpacity(.9);
     historicalOverlay.setMap(map);
 
 

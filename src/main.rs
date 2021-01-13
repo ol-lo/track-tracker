@@ -1,6 +1,7 @@
 mod geo_coder;
 mod bot;
 mod tracker;
+mod trace_skeleton;
 
 use std::env;
 

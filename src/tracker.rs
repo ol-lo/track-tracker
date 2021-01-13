@@ -1,5 +1,4 @@
 extern crate image;
-
 use image::{GenericImageView, GenericImage, DynamicImage};
 use delta_e::DE2000;
 use tera::{Tera, Context};
@@ -15,7 +14,10 @@ use std::io::Write;
 use std::ops::Deref;
 use std::collections::HashMap;
 use crate::geo_coder::{GeoCoords, Point};
+
 use telegram_bot::MessageEntityKind::Url;
+use crate::trace_skeleton::{trace_skeleton, thinning_zs, polylines_to_svg};
+// use crate::trace_skeleton::thinning_zs;
 
 
 struct GeoCoder {
@@ -54,7 +56,7 @@ fn is_in_radius(vec: &Vec<Point>, point: Point) -> bool {
     )
 }
 
-fn build_html_page(geo_coords: &Vec<GeoCoords>, top_left: &GeoCoords, bottom_right: &GeoCoords, center: &GeoCoords, overlay_file: &str) -> String {
+fn build_html_page(geo_coords: &Vec<GeoCoords>, top_left: &GeoCoords, bottom_right: &GeoCoords, center: &GeoCoords, overlay_file: &str, svg_route: String) -> String {
     let tera = match Tera::new("templates/*.html") {
         Ok(t) => t,
         Err(e) => {
@@ -65,6 +67,7 @@ fn build_html_page(geo_coords: &Vec<GeoCoords>, top_left: &GeoCoords, bottom_rig
 
 
     let mut context = Context::new();
+    context.insert("svg_route", &svg_route);
     context.insert("coordinates", geo_coords);
     context.insert("top_left", top_left);
     context.insert("bottom_right", bottom_right);
@@ -89,7 +92,7 @@ fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: 
 
     let path_color = lab::Lab::from_rgb(&PATH_COLOR_REFERENCE);
 
-    let mut visited_pixel_counter = 0;
+    // let mut visited_pixel_counter = 0;
     loop {
         next_points_to_visit.clear();
         for current_point in points_to_visit.iter() {
@@ -114,10 +117,13 @@ fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: 
                         path_color,
                     );
 
-                    if color_diff < 5. {
-                        img.put_pixel(next_point.0 as u32, next_point.1 as u32, image::Rgba([255u8; 4]));
+                    if color_diff < 7. {
+                        // img.put_pixel(next_point.0 as u32, next_point.1 as u32, image::Rgba([255u8; 4]));
                         next_points_to_visit.push(next_point);
+                    } else {
+                        // img.put_pixel(next_point.0 as u32, next_point.1 as u32, image::Rgba([0u8; 4]))
                     }
+
                 }
             }
         }
@@ -140,6 +146,21 @@ fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: 
     return marker_points;
 }
 
+fn image_to_svg(normalized_image: &DynamicImage) -> String {
+    let img = normalized_image.to_luma();
+    let (w, h) = img.dimensions();
+    let mut im = img.into_raw();
+    for i in 0..h * w {
+        if im[i as usize] > 128 {
+            im[i as usize] = 1
+        } else {
+            im[i as usize] = 0
+        }
+    }
+    thinning_zs(&mut im, w as usize, h as usize);
+    let p: Vec<Vec<[usize; 2]>> = trace_skeleton(&mut im, w as usize, h as usize, 0, 0, w as usize, h as usize, 10, 999);
+    return polylines_to_svg(&p, w as usize, h as usize);
+}
 pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8], file_name: &str) -> String {
     let img = image::load_from_memory(image).unwrap();
     let mut img_dest: DynamicImage = img.clone();
@@ -158,23 +179,33 @@ pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8],
     let mut visited_points: Vec<u8> = Vec::new();
     visited_points.resize((image_width * image_width) as usize, 1);
 
-    'outer: for x in 0..image_width {
+    for x in 0..image_width {
         for y in 0..image_height {
             let diff = DE2000::new(
                 lab::Lab::from_rgba(&img.get_pixel(x, y).0),
                 path_color,
             );
-            if diff < 5. && visited_points[(x * image_width as u32 + y) as usize] != 0 {
-                for marker in traverse_path(&mut img_dest, &Point(x as i32, y as i32), &mut visited_points).iter() {
-                    geo_coords.push(geo_coder.point_to_geo_coords(*marker));
-                };
+            // let pixel_position = (x * image_width as u32 + y) as usize;
+            // if pixel_position >= visited_points.len()  {
+            //     continue;
+            // }
+            // if visited_points[(x * image_width as u32 + y) as usize] == 0 {
+            //     continue;
+            // }
+            if diff < 15.  {
+                img_dest.put_pixel(x, y, image::Rgba([255u8; 4]))
+                // for marker in traverse_path(&mut img_dest, &Point(x as i32, y as i32), &mut visited_points).iter() {
+                //     geo_coords.push(geo_coder.point_to_geo_coords(*marker));
+                // };
+            } else {
+                img_dest.put_pixel(x, y, image::Rgba([0u8; 4]))
             }
         }
     }
-
+    let svg_route = image_to_svg(&img_dest);
     let center = GeoCoords(
         (top_left.0 + bottom_right.0) / 2.,
-        (top_left.1 + bottom_right.1) / 2.
+        (top_left.1 + bottom_right.1) / 2.,
     );
 
     let mut settings = config::Config::default();
@@ -192,17 +223,23 @@ pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8],
     let overlay_path = storage_path.join(&overlay_name);
 
 
-    let map = build_html_page(&geo_coords, top_left, bottom_right, &center, overlay_name.as_str());
+    let map = build_html_page(&geo_coords, top_left, bottom_right, &center, overlay_name.as_str(), svg_route);
 
     fs::create_dir_all(&storage_path_raw);
 
     let mut generated_map_file = File::create(storage_path.join(&page_name)).expect("unable to create file");
-    img_dest.save(overlay_path).unwrap();
+    img.save(overlay_path).unwrap();
     generated_map_file.write_all(map.as_bytes()).expect("unable to write");
 
     let dest_url = settings.get_str("server_url").unwrap();
     UrlLib::parse(dest_url.as_str()).unwrap().join(&page_name.as_str()).unwrap().into_string()
 }
+
+// fn highlight_path() {
+//     let mut img = image::load_from_memory(image).unwrap();
+//     // let mut img_dest: DynamicImage = img.clone();
+//
+// }
 
 fn run() {
     let img = image::open("track.jpg").unwrap();
@@ -218,6 +255,24 @@ mod tests {
     #[test]
     fn test_run_as_is() {
         run();
+    }
+
+    #[test]
+    fn generate_map() {
+        let top_left_coords = GeoCoords(
+            48.516935, 135.046114,
+        );
+        let bottom_right_coords = GeoCoords(
+            48.513275, 135.051028,
+        );
+
+        let img = fs::read("track_map.jpg").unwrap();
+        let map_url = publish_map(
+            &top_left_coords,
+            &bottom_right_coords,
+            &img[..],
+            "track_map_overlay.jpg",
+        );
     }
 }
 
