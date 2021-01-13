@@ -91,24 +91,31 @@ impl AddMapCommand {
                 }
             }
             AddCommandStep::Image => {
+                let mut file_url: Option<GetFile> = None;
                 if let MessageKind::Photo { ref data, .. } = message.kind {
-                    let file_url = data[0].get_file();
+                    file_url = Some(data[0].get_file());
+                } else if let MessageKind::Document { ref data, .. } = message.kind {
+                    file_url = Some(data.get_file());
+                    // data.mime_type
+                } else {
+                    self.api.send(message.chat.text("#3. Не могу распознать изображение")).await?;
+                    return Ok(());
+                }
 
-                    let file = self.api.send(file_url).await?;
-                    let full_url = file.get_url(self.token.as_str()).unwrap();
-                    if let Some(file_url) = &file.file_path {
-                        let resp = reqwest::get(&full_url).await?;
-                        let bytes = resp.bytes().await?;
-                        let dest_url = publish_map(
-                            &self.top_left.as_ref().unwrap(),
-                            &self.bottom_right.as_ref().unwrap(),
-                            &bytes.to_vec(),
-                            file_url,
-                        );
+                let file = self.api.send(file_url.unwrap()).await?;
+                let full_url = file.get_url(self.token.as_str()).unwrap();
+                if let Some(file_url) = &file.file_path {
+                    let resp = reqwest::get(&full_url).await?;
+                    let bytes = resp.bytes().await?;
+                    let dest_url = publish_map(
+                        &self.top_left.as_ref().unwrap(),
+                        &self.bottom_right.as_ref().unwrap(),
+                        &bytes.to_vec(),
+                        file_url,
+                    );
 
-                        let message_text = format!("{}", dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
-                        self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Html)).await?;
-                    }
+                    let message_text = format!("{}", dest_url.as_str()).replace("`", r"\`").replace(")", r"\)");
+                    self.api.send(message.chat.text(message_text).parse_mode(ParseMode::Html)).await?;
                 }
             }
         }
@@ -152,12 +159,12 @@ impl ListCommand {
     pub async fn handle_command(&mut self, message: &Message) -> Result<(), Box<dyn std::error::Error>> {
         let files_as_text = list_html_files(
             &self.settings.get_str("map_storage_path").unwrap(),
-            &self.settings.get_str("server_url").unwrap()
+            &self.settings.get_str("server_url").unwrap(),
         );
         let mut message_text: String = String::from("");
         if files_as_text.is_empty() {
             message_text = String::from("Нет карт");
-        }  else {
+        } else {
             message_text = files_as_text;
         }
 
