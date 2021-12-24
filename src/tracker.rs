@@ -78,7 +78,7 @@ fn build_html_page(geo_coords: &Vec<GeoCoords>, top_left: &GeoCoords, bottom_rig
 }
 
 const MIN_MARK_DISTANCE: i32 = 1;
-const PATH_COLOR_REFERENCE: [u8; 3] = [241, 125, 12];
+const PATH_COLOR_REFERENCE: [u8; 3] = [212, 55, 31];
 
 fn traverse_path(img: &mut DynamicImage, initial_point: &Point, visited_points: &mut Vec<u8>) -> Vec<Point> {
     let (image_width, image_height) = img.dimensions();
