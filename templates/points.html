@@ -160,7 +160,7 @@
                 // }
             })
         );
-        mapMarkers[i].posTitle = "№" + i + ":" + locations[i][0] + ", " + locations[i][1];
+        mapMarkers[i].posTitle = "№" + i + ": " + locations[i][0] + ", " + locations[i][1];
         mapMarkers[i].addListener('click', function () {
             infowindow.setContent('<div style="font-size: 32px">' + this.posTitle + '</div>');
             infowindow.open(map, this);
