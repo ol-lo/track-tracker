@@ -10,6 +10,7 @@
         .hidden {
             display: none;
         }
+
         .marker {
             margin-left: 40px;
             -webkit-text-stroke-width: 1px;
@@ -85,7 +86,7 @@
     })
 
     let farestPointPair = closestPoints.reduce((prevPair, currentPair) => {
-        return currentPair.distance> prevPair.distance ? currentPair : prevPair;
+        return currentPair.distance > prevPair.distance ? currentPair : prevPair;
     }, {from: undefined, to: undefined, distance: -Infinity})
 
     function extendLocations(path, direction) {
@@ -110,6 +111,7 @@
 
         })
     }
+
     let traversedPaths = [];
     extendLocations(svgPaths[farestPointPair.from.idx], farestPointPair.from.direction)
     traversedPaths.push(farestPointPair.from.idx);
@@ -117,7 +119,7 @@
 
     function findClosestPath(pathIndex, direction) {
         // debugger;
-        const nextPoint =  closestPoints.find((pointCandidate) => {
+        const nextPoint = closestPoints.find((pointCandidate) => {
             return pointCandidate.from.direction === direction && pathIndex === pointCandidate.from.idx;
         }).to
 
@@ -130,7 +132,7 @@
 
     let prevPoint = farestPointPair.from;
     while (traversedPaths.length < svgPaths.length) {
-        let nextPoint = findClosestPath(prevPoint.idx, prevPoint.direction === 'start'? 'end': 'start')
+        let nextPoint = findClosestPath(prevPoint.idx, prevPoint.direction === 'start' ? 'end' : 'start')
         if (!nextPoint) {
             break
         }
@@ -143,7 +145,10 @@
     for (i = 0; i < locations.length; i++) {
         mapMarkers.push(
             new google.maps.Marker({
-                icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                icon: {
+                    url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                    scaledSize: new google.maps.Size(100, 100)
+                },
                 position: new google.maps.LatLng(locations[i][0], locations[i][1]),
                 map: map,
                 label: {
@@ -151,13 +156,13 @@
                     className: 'marker',
                     color: 'white',
                     fontWeight: 'bold',
-                    fontSize: '18px'
+                    fontSize: '24px'
                 }
             })
         );
         mapMarkers[i].posTitle = locations[i][0] + ", " + locations[i][1];
         mapMarkers[i].addListener('click', function () {
-            infowindow.setContent(this.posTitle);
+            infowindow.setContent('<div style="font-size: 16px">' + this.posTitle + '</div>');
             infowindow.open(map, this);
         });
     }
@@ -172,14 +177,17 @@
         var latLng = new google.maps.LatLng(deviceCoords.lat, deviceCoords.lng);
         if (!devicePositionMarker) {
             devicePositionMarker = new google.maps.Marker({
-                icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                icon: {
+                    url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                    scaledSize: new google.maps.Size(100, 100)
+                },
                 position: latLng,
                 map: map
             });
 
 
             devicePositionMarker.addListener('click', function () {
-                infowindow.setContent(deviceCoords.lat + ", " + deviceCoords.lng);
+                infowindow.setContent('<div style="font-size: 16px">' + deviceCoords.lat + ", " + deviceCoords.lng + '</div>');
                 infowindow.open(map, this);
             });
 
@@ -195,8 +203,6 @@
 
     navigator.geolocation.watchPosition(updateMarkerLocation, function () {
     });
-
-
 
 
     historicalOverlay = new google.maps.GroundOverlay(
