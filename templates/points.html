@@ -147,20 +147,20 @@
             new google.maps.Marker({
                 icon: {
                     url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                    scaledSize: new google.maps.Size(100, 100)
+                    scaledSize: new google.maps.Size(50, 50)
                 },
                 position: new google.maps.LatLng(locations[i][0], locations[i][1]),
                 map: map,
-                label: {
-                    text: i.toString(),
-                    className: 'marker',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '24px'
-                }
+                // label: {
+                //     text: i.toString(),
+                //     className: 'marker',
+                //     color: 'white',
+                //     fontWeight: 'bold',
+                //     fontSize: '24px'
+                // }
             })
         );
-        mapMarkers[i].posTitle = locations[i][0] + ", " + locations[i][1];
+        mapMarkers[i].posTitle = "№" + i + ":" + locations[i][0] + ", " + locations[i][1];
         mapMarkers[i].addListener('click', function () {
             infowindow.setContent('<div style="font-size: 32px">' + this.posTitle + '</div>');
             infowindow.open(map, this);
@@ -179,7 +179,7 @@
             devicePositionMarker = new google.maps.Marker({
                 icon: {
                     url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                    scaledSize: new google.maps.Size(100, 100)
+                    scaledSize: new google.maps.Size(50, 50)
                 },
                 position: latLng,
                 map: map
