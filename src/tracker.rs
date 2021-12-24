@@ -157,7 +157,7 @@ fn image_to_svg(normalized_image: &DynamicImage) -> String {
             im[i as usize] = 0
         }
     }
-    thinning_zs(&mut im, w as usize, h as usize);
+    // thinning_zs(&mut im, w as usize, h as usize);
     let p: Vec<Vec<[usize; 2]>> = trace_skeleton(&mut im, w as usize, h as usize, 0, 0, w as usize, h as usize, 10, 999);
     return polylines_to_svg(&p, w as usize, h as usize);
 }
@@ -165,7 +165,7 @@ pub fn publish_map(top_left: &GeoCoords, bottom_right: &GeoCoords, image: &[u8],
     let img = image::load_from_memory(image).unwrap();
     let mut img_dest: DynamicImage = img.clone();
 
-    let path_color = lab::Lab::from_rgb(&[241, 125, 12]);
+    let path_color = lab::Lab::from_rgb(&PATH_COLOR_REFERENCE);
     let geo_coder = GeoCoder::new(
         (*top_left).clone(),
         (*bottom_right).clone(),
