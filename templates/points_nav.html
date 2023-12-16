@@ -906,11 +906,15 @@
         map.setCenter(latLng);
     }
 
+    const options = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+    }
     navigator.geolocation.getCurrentPosition(updateMarkerLocation, function () {
-    });
+    }, options);
 
     navigator.geolocation.watchPosition(updateMarkerLocation, function () {
-    });
+    }, options);
 
 
 
